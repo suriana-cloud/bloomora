@@ -1,0 +1,6 @@
+{
+  "name": "BLOOMORA - DIY Fuzzy Flower Kits",
+  "description": "Boutique e-commerce website for Bloomora, selling beginner-friendly DIY Fuzzy Flower Kits with the tagline Blooming Your Efforts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

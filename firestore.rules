@@ -1,0 +1,181 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default Deny All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Core Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.\\@]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Role Resolution Helpers ---
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email != null && request.auth.token.email == '2025177489@student.uitm.edu.my') ||
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'super_admin') ||
+        (request.auth.token.email != null &&
+         exists(/databases/$(database)/documents/admins/$(request.auth.token.email)) &&
+         get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data.role == 'super_admin')
+      );
+    }
+
+    function getAdminDoc() {
+      return exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/admins/$(request.auth.uid)).data
+        : (request.auth.token.email != null && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
+            ? get(/databases/$(database)/documents/admins/$(request.auth.token.email)).data
+            : null);
+    }
+
+    function hasAdminRole(role) {
+      return isSuperAdmin() || (
+        isSignedIn() && getAdminDoc() != null && getAdminDoc().role == role
+      );
+    }
+
+    function isAnyAdmin() {
+      return isSuperAdmin() || (
+        isSignedIn() && getAdminDoc() != null && getAdminDoc().role in [
+          'super_admin',
+          'product_manager',
+          'order_manager',
+          'marketing_manager',
+          'customer_service'
+        ]
+      );
+    }
+
+    function isProductManager() {
+      return hasAdminRole('product_manager');
+    }
+
+    function isOrderManager() {
+      return hasAdminRole('order_manager');
+    }
+
+    function isMarketingManager() {
+      return hasAdminRole('marketing_manager');
+    }
+
+    function isCustomerService() {
+      return hasAdminRole('customer_service');
+    }
+
+    // --- Admins Collection (RBAC Registry) ---
+    match /admins/{adminId} {
+      // Authenticated users can read their own admin record to fetch permissions
+      allow get: if isSignedIn() && (
+        request.auth.uid == adminId ||
+        (request.auth.token.email != null && request.auth.token.email == adminId) ||
+        isSuperAdmin()
+      );
+      allow list: if isSuperAdmin();
+      // Only Super Admin can provision or change administrator roles
+      allow create, update, delete: if isSuperAdmin() && isValidId(adminId);
+    }
+
+    // --- Products Collection ---
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'name', 'price', 'category', 'inStock']) &&
+        data.id is string && data.id.size() <= 100 &&
+        data.name is string && data.name.size() <= 100 &&
+        data.price is number && data.price >= 0 && data.price <= 1000 &&
+        data.category in ['single', 'bouquet', 'mixed'] &&
+        data.inStock is bool;
+    }
+
+    match /products/{productId} {
+      allow get, list: if true; // Public catalog viewing
+      allow create, update, delete: if isProductManager() && isValidId(productId) && isValidProduct(incoming());
+    }
+
+    // --- Orders Collection ---
+    function isValidNewOrder(data) {
+      return data.keys().hasAll(['orderNumber', 'customerName', 'phoneNumber', 'totalAmount', 'orderStatus', 'isPaid']) &&
+        data.orderNumber is string && data.orderNumber.size() <= 32 &&
+        data.customerName is string && data.customerName.size() <= 120 && data.customerName.size() >= 2 &&
+        data.phoneNumber is string && data.phoneNumber.size() <= 30 && data.phoneNumber.size() >= 7 &&
+        data.totalAmount is number && data.totalAmount >= 0 &&
+        data.isPaid == false && // Public customers cannot self-verify orders
+        data.orderStatus == 'pending_payment'; // Initial status must be pending_payment
+    }
+
+    match /orders/{orderId} {
+      // Customer submits checkout order
+      allow create: if isValidId(orderId) && isValidNewOrder(incoming());
+
+      // Order Manager and Customer Service can view customer orders
+      allow get, list: if isOrderManager() || isCustomerService();
+
+      // Order Manager can update payment status and order progress
+      allow update: if isOrderManager() && isValidId(orderId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['orderStatus', 'isPaid', 'updatedBy', 'updatedAt'])
+      );
+
+      // Only Super Admin can delete orders
+      allow delete: if isSuperAdmin();
+    }
+
+    // --- Promotions Collection ---
+    match /promotions/{promoId} {
+      allow get, list: if true; // Public customers check remaining spots
+      allow update: if isMarketingManager() || (
+        // Public checkout atomicity increment
+        incoming().diff(existing()).affectedKeys().hasOnly(['currentRedemptions']) &&
+        incoming().currentRedemptions <= 30 &&
+        incoming().currentRedemptions >= existing().currentRedemptions
+      );
+      allow create, delete: if isMarketingManager();
+    }
+
+    // --- Audit Logs Collection (Immutable record of changes) ---
+    match /audit_logs/{logId} {
+      allow read: if isAnyAdmin();
+      allow create: if isAnyAdmin() && isValidId(logId) && (
+        incoming().keys().hasAll(['adminEmail', 'adminRole', 'action', 'targetType', 'details', 'timestamp']) &&
+        incoming().adminEmail is string &&
+        incoming().adminRole is string &&
+        incoming().action is string
+      );
+      allow update, delete: if false; // Audit logs can never be tampered with or deleted
+    }
+
+    // --- Customer Enquiries Collection ---
+    function isValidEnquiry(data) {
+      return data.keys().hasAll(['name', 'contact', 'message', 'status', 'createdAt']) &&
+        data.name is string && data.name.size() <= 100 &&
+        data.contact is string && data.contact.size() <= 120 &&
+        data.message is string && data.message.size() <= 2000 &&
+        data.status in ['new', 'in_progress', 'resolved'];
+    }
+
+    match /enquiries/{enquiryId} {
+      // Customers can submit enquiries from the website
+      allow create: if isValidId(enquiryId) && isValidEnquiry(incoming());
+
+      // Customer Service and Super Admin can view and respond to enquiries
+      allow get, list: if isCustomerService();
+      allow update: if isCustomerService() && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'respondedBy'])
+      );
+      allow delete: if isSuperAdmin();
+    }
+  }
+}

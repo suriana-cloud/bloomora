@@ -1,0 +1,299 @@
+{
+  "entities": {
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized Bloomora business team member with assigned role",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Admin email address"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Team member full name"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "super_admin",
+            "product_manager",
+            "order_manager",
+            "marketing_manager",
+            "customer_service"
+          ],
+          "description": "Assigned administrative role"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "A Bloomora DIY Fuzzy Flower Kit",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique product slug identifier"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Flower kit name"
+        },
+        "price": {
+          "type": "number",
+          "description": "Price in Malaysian Ringgit (RM)"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["single", "bouquet", "mixed"],
+          "description": "Kit category"
+        },
+        "flowerType": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Flower variety (Tulip, Lily, Sunflower, Hibiscus, Daisy, Mixed)"
+        },
+        "shortDescription": {
+          "type": "string",
+          "maxLength": 300
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "inStock": {
+          "type": "boolean",
+          "description": "Availability status"
+        },
+        "customImageUrl": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "updatedBy": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Email of admin who last updated product"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "price", "category", "inStock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase order for Bloomora DIY kits",
+      "type": "object",
+      "properties": {
+        "orderNumber": {
+          "type": "string",
+          "maxLength": 32,
+          "description": "Unique order reference code"
+        },
+        "customerName": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Customer full name"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Customer phone contact for WhatsApp updates"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Optional email address"
+        },
+        "subtotal": {
+          "type": "number",
+          "description": "Order subtotal in RM"
+        },
+        "discount": {
+          "type": "number",
+          "description": "Applied discount in RM"
+        },
+        "discountApplied": {
+          "type": "boolean"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Final payable amount in RM"
+        },
+        "deliveryMethod": {
+          "type": "string",
+          "enum": ["pickup", "delivery"]
+        },
+        "deliveryNotes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "paymentMethod": {
+          "type": "string",
+          "enum": ["duitnow_qr"]
+        },
+        "isPaid": {
+          "type": "boolean",
+          "description": "Verified manual payment status"
+        },
+        "orderStatus": {
+          "type": "string",
+          "enum": ["pending_payment", "payment_verified", "preparing_kit", "ready", "completed", "cancelled"]
+        },
+        "updatedBy": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Email of admin who updated order status"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["orderNumber", "customerName", "phoneNumber", "totalAmount", "orderStatus", "isPaid"]
+    },
+    "Promotion": {
+      "title": "Promotion",
+      "description": "Launch promotional campaign tracker",
+      "type": "object",
+      "properties": {
+        "campaignName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "discountPercent": {
+          "type": "number"
+        },
+        "maxRedemptions": {
+          "type": "number"
+        },
+        "currentRedemptions": {
+          "type": "number"
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "updatedBy": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["campaignName", "maxRedemptions", "currentRedemptions", "isActive"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Immutable log tracking which administrator made each administrative change",
+      "type": "object",
+      "properties": {
+        "adminEmail": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "adminRole": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "action": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "targetType": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "targetId": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "details": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["adminEmail", "adminRole", "action", "targetType", "details", "timestamp"]
+    },
+    "CustomerEnquiry": {
+      "title": "CustomerEnquiry",
+      "description": "Customer contact submissions readable by Customer Service & Super Admins",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "contact": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "status": {
+          "type": "string",
+          "enum": ["new", "in_progress", "resolved"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "respondedBy": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "required": ["name", "contact", "message", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": "AdminUser",
+      "description": "Protected administrator accounts and role mappings. Read by authenticated users for their own document, managed by super_admin."
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Public catalog of Bloomora DIY flower kits. Read by customers, modified by Super Admin and Product Manager."
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer order records. Created by customers during checkout, readable and updated by Super Admin, Order Manager, and Customer Service."
+    },
+    "/promotions/{promoId}": {
+      "schema": "Promotion",
+      "description": "Promotional state and redemptions counter. Managed by Super Admin and Marketing Manager."
+    },
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Audit trail recording administrative actions taken by each manager."
+    },
+    "/enquiries/{enquiryId}": {
+      "schema": "CustomerEnquiry",
+      "description": "Customer contact inquiries. Created by customers, managed by Customer Service and Super Admin."
+    }
+  }
+}
